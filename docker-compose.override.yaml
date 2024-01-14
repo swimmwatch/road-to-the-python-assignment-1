@@ -1,0 +1,11 @@
+services:
+  postgres:
+    ports:
+     - 5432:5432
+  app:
+    ports:
+      - 80:80
+  minio:
+    ports:
+      - 9000:9000
+      - 9090:9090
