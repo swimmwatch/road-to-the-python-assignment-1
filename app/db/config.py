@@ -14,4 +14,6 @@ class DatabaseSettings(BaseSettings):
             f"postgresql+psycopg://{self.user}:{self.password}@{self.host}/{self.name}"
         )
 
-    model_config = SettingsConfigDict(env_prefix="db_", env_file=(".env"))
+    model_config = SettingsConfigDict(
+        env_prefix="db_", env_file=(".env"), extra="allow"
+    )

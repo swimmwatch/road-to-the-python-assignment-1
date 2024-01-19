@@ -1,8 +1,9 @@
 from datetime import date
 from typing import List, Optional
 
+from sqlalchemy import ForeignKey, func
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
 from utils.sql.types import GENDERS
@@ -21,29 +22,35 @@ class Pet(Base):
     created: Mapped[date] = mapped_column(default=date.today)
     updated: Mapped[Optional[date]] = mapped_column(onupdate=date.today)
 
-    @validates("name")
-    def validate_name(self, key, name) -> str:
-        if len(name) < 3 or len(name) > 28:
-            raise ValueError("name not correct")
-        return name
-
-    @validates("description")
-    def validate_description(self, key, description) -> str:
-        if len(description) > 1024:
-            raise ValueError("description not correct")
-        return description
-
-    @validates("date_of_birth")
-    def validate_date_of_birth(self, key, date_of_birth) -> date:
-        if date_of_birth < date(1900, 1, 1):
-            raise ValueError("date_of_birth not correct")
-        return date_of_birth
-
     @hybrid_property
     def age(self):
         if self.date_of_death:
-            deltaa = self.date_of_death - self.date_of_birth
+            last_day = self.date_of_death
         else:
-            deltaa = date.today() - self.date_of_birth
-        age = int(deltaa.days) // 365
-        return age
+            last_day = date.today()
+        return (
+            last_day.year
+            - self.date_of_birth.year
+            - (
+                (last_day.month, last_day.day)
+                < (self.date_of_birth.month, self.date_of_birth.day)
+            )
+        )
+
+    @age.inplace.expression
+    @classmethod
+    def _age_expression(cls):
+        return func.extract(
+            "year",
+            func.age(
+                func.coalesce(cls.date_of_death, func.current_date()), cls.date_of_birth
+            ),
+        )
+
+
+class Photo(Base):
+    __tablename__ = "photos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column(nullable=False)
+    pet_id: Mapped[int] = mapped_column(ForeignKey("pets.id"))
+    created: Mapped[date] = mapped_column(default=date.today)

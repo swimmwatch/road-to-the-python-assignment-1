@@ -2,12 +2,13 @@ from minio import Minio
 
 from .config import MinioSettings
 
+settings = MinioSettings()
 minio_client = Minio(
-    endpoint=MinioSettings().endpoint,
-    access_key=MinioSettings().access_key,
-    secret_key=MinioSettings().secret_key,
+    endpoint=settings.endpoint,
+    access_key=settings.access_key,
+    secret_key=settings.secret_key,
     secure=False,
 )
 
 
-bucket_name = MinioSettings().bucket_name
+bucket_name = settings.bucket_name

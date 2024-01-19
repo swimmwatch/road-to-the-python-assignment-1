@@ -5,14 +5,15 @@ from PIL import Image
 from amazonstorage.client import bucket_name, minio_client
 
 
-def get_flow_in_format_and_write(file, format, name):
+def image_upload(file, format, name):
     img = Image.open(file)
     with BytesIO() as flow:
         img.save(flow, format=format)
         flow.seek(0)
         ret = minio_client.put_object(
-            bucket_name, name, flow, flow.getbuffer().nbytes
-        )  # не смог вынести в отдельную функцию изза потока
+            bucket_name, name, flow, flow.getbuffer().nbytes, content_type="image/jpeg"
+        )
+
         return ret
 
 

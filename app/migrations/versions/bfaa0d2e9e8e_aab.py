@@ -1,15 +1,15 @@
 """aab
 
-Revision ID: c44cb0a456b5
+Revision ID: bfaa0d2e9e8e
 Revises: 
-Create Date: 2024-01-11 00:29:27.274085
+Create Date: 2024-01-16 17:55:02.192022
 
 """
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "c44cb0a456b5"
+revision = "bfaa0d2e9e8e"
 down_revision = None
 branch_labels = None
 depends_on = None

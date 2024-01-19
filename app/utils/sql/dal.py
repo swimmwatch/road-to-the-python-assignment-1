@@ -73,28 +73,22 @@ class SqlAlchemyRepository:
     def query(self):
         return self._base_query
 
-    def fetch(self, limit, page=1):
-        page = int(page)
+    def fetch(self, limit, offset):
+        offset = int(offset)
         limit = int(limit)
-        if page <= 0:
-            raise ValueError("page value must be greater or equal 1")
+        if offset < 0:
+            raise ValueError("limit value must be greater or equal 0")
         if limit <= 0:
             raise ValueError("limit value must be greater or equal 1")
 
-        stmt = self._base_query.offset((page - 1) * limit).limit(limit)
+        stmt = self._base_query.offset(offset).limit(limit)
         result = self.session_factory.execute(stmt).scalars().all()
 
-        stmt = select(func.ceil(func.count() / limit)).select_from(self._base_query)
+        stmt = select(func.count()).select_from(self._base_query)
 
-        total_pages = self.session_factory.execute(stmt).scalar_one_or_none()
-        next_page = page + 1
-        if next_page > total_pages:
-            next_page = None
-        prev_page = page - 1
-        if prev_page < 1:
-            prev_page = None
+        total_elements = self.session_factory.execute(stmt).scalar_one_or_none()
 
-        return result, prev_page, next_page, total_pages
+        return result, total_elements
 
     def delete_all(self):
         self.session_factory.query(self.Config.model).delete()

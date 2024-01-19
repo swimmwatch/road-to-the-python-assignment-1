@@ -1,14 +1,14 @@
 from typing import Annotated
 
-from fastapi import (APIRouter, Depends, File, HTTPException, Query, Security,
-                     UploadFile, status)
+from fastapi import (APIRouter, Depends, File, HTTPException, Query, Request,
+                     Security, UploadFile, status)
 from fastapi_filter import FilterDepends
 from sqlalchemy import exc
 
 from amazonstorage.config import MinioSettings
 from utils.image_convert import (check_format_valid, construct_url_for_image,
                                  convert_format_suffix)
-from utils.minio import delete_image_file, get_flow_in_format_and_write
+from utils.minio import delete_image_file, image_upload
 
 from .config import ImageFormatSettings
 from .dependencies import get_api_key, get_petdal, get_photodal
@@ -16,13 +16,16 @@ from .filters import PetFilter
 from .schemas import (PetCreate, PetDetail, PetPaginatedResponse, PetPatch,
                       PhotoDetail)
 
-router = APIRouter(prefix="/pet")
+router = APIRouter(
+    prefix="/pet",
+    dependencies=[
+        Security(get_api_key),
+    ],
+)
 
 
 @router.get("/{pet_id}", response_model=PetDetail)
-def get_one_pet(
-    pet_id: int, api_key: str = Security(get_api_key), pet_dal=Depends(get_petdal)
-):
+def get_one_pet(pet_id: int, pet_dal=Depends(get_petdal)):
     one_pet = pet_dal.get_one_or_none(id=pet_id)
     if one_pet is None:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -32,7 +35,6 @@ def get_one_pet(
 @router.post("/", response_model=PetDetail)
 def create_one_pet(
     operation_data: PetCreate,
-    api_key: str = Security(get_api_key),
     pet_dal=Depends(get_petdal),
 ):
     return pet_dal.create_one(**operation_data.dict())
@@ -42,7 +44,6 @@ def create_one_pet(
 def patch_one_pet(
     pet_id: int,
     operation_data: PetPatch,
-    api_key: str = Security(get_api_key),
     pet_dal=Depends(get_petdal),
 ):
     patched_pet = pet_dal.update_one(operation_data.dict(exclude_unset=True), id=pet_id)
@@ -54,34 +55,31 @@ def patch_one_pet(
 @router.get("/", response_model=PetPaginatedResponse)
 def get_pages(
     limit: Annotated[int, Query(ge=1)],
-    page: Annotated[int, Query(ge=1)] = 1,
+    offset: Annotated[int, Query(ge=0)] = 0,
     pet_filter: PetFilter = FilterDepends(PetFilter),
-    api_key: str = Security(get_api_key),
     pet_dal=Depends(get_petdal),
 ):
     filter_query = pet_filter.filter(pet_dal.query())
-    # query = pet_filter.sort(filter_query)
-    result, prev_page, next_page, total_pages = pet_dal.base(filter_query).fetch(
-        limit, page
-    )
-    return PetPaginatedResponse(
-        result=result, prev_page=prev_page, next_page=next_page, total_pages=total_pages
-    )
+    query = pet_filter.sort(filter_query)
+    result, total_elements = pet_dal.base(query).fetch(limit, offset)
+    return PetPaginatedResponse(result=result, total_elements=total_elements)
 
 
-@router.post("/{pet_id}", response_model=PhotoDetail)
+@router.post("/{pet_id}/photo", response_model=PhotoDetail)
 async def upload_file(
     pet_id: int,
+    request: Request,
     file: UploadFile = File(...),
-    api_key: str = Security(get_api_key),
     photo_dal=Depends(get_photodal),
 ):
     if check_format_valid(file.content_type):
         single_format = ImageFormatSettings().single_image_format
         name = convert_format_suffix(file.filename, single_format)
-        get_flow_in_format_and_write(file.file, single_format, name)
+        await request.app.state.run_in_process(
+            image_upload, file.file, single_format, name
+        )
         url = construct_url_for_image(
-            MinioSettings().endpoint, MinioSettings().bucket_name, name
+            request.url.hostname, MinioSettings().bucket_name, name
         )
         try:
             return photo_dal.create_one(url=url, pet_id=pet_id)
@@ -96,14 +94,13 @@ async def upload_file(
         )
 
 
-@router.delete("/{pet_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{pet_id}/photo/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_file(
     pet_id: int,
-    file_id: int,
-    api_key: str = Security(get_api_key),
+    photo_id: int,
     photo_dal=Depends(get_photodal),
 ):
-    result = photo_dal.delete_one(pet_id=pet_id, id=file_id)
+    result = photo_dal.delete_one(pet_id=pet_id, id=photo_id)
     if result:
         delete_image_file(result.url)
         return status.HTTP_204_NO_CONTENT

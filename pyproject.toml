@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "poetry-demo"
+name = "app"
 version = "0.1.0"
 description = ""
 authors = ["alexey <a556077@icloud.com>"]
 readme = "README.md"
-packages = [{include = "poetry_demo"}]
+packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -27,6 +27,9 @@ numpy = "^1.26.3"
 black = "^23.12.1"
 flake8 = "^7.0.0"
 isort = "^5.13.2"
+pytest = "^7.4.4"
+faker = "^22.4.0"
+pillow-heif = "^0.14.0"
 
 
 

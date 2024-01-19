@@ -3,9 +3,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from db.base import Base
-from db.config import DatabaseSettings
-from db.models import *  # noqa: F401, F403
+from app.db.base import Base
+from app.db.config import DatabaseSettings
+from app.db.models import *  # noqa: F401, F403
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -16,7 +16,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 if context.config.get_main_option("is_test") == "True":
-    settings = DatabaseSettings(db_name=context.config.get_main_option("test_db_name"))
+    settings = DatabaseSettings(name=context.config.get_main_option("test_db_name"))
 else:
     settings = DatabaseSettings()
 
