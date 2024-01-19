@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Security, status
+from fastapi import HTTPException, Security, status, Depends
 
 from db.client import get_session
 from db.dal.pet import PetDAL
@@ -8,14 +8,14 @@ from .config import ApiSettings
 from .headers import api_key_header
 
 
-def get_petdal():
-    with get_session() as session:
-        return PetDAL(session)
+def get_petdal(session = Depends(get_session)):
+    with session as db_session:
+        return PetDAL(db_session)
 
 
-def get_photodal():
-    with get_session() as session:
-        return PhotoDAL(session)
+def get_photodal(session = Depends(get_session)):
+    with session as db_session:
+        return PhotoDAL(db_session)
 
 
 def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
